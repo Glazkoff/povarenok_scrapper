@@ -1,5 +1,6 @@
 import json
 import csv
+import sqlite3
 from random import randrange
 import aiohttp
 import asyncio
@@ -7,10 +8,8 @@ from itertools import islice
 from bs4 import BeautifulSoup
 
 from mark_time import mark_time
-from get_categories import categories_file, data_path
 from proxy_auth_data import proxy_ip, proxy_port, proxy_login, proxy_password
-
-receipts_path = data_path / "receipts"
+from paths import receipts_path, db_path, categories_file
 
 headers = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
@@ -92,8 +91,18 @@ async def gather_data():
 
 @mark_time
 def main():
+    # Создаём необходимые папки, если не
     if not receipts_path.exists() or not receipts_path.is_dir():
         receipts_path.mkdir()
+
+    # Создаём таблицы в БД, если не существуют
+    # con = sqlite3.connect(db_path)
+    # cur = con.cursor()
+    # cur.execute(
+    #     "CREATE TABLE IF NOT EXISTS categories(id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(255), url VARCHAR(255))"
+    # )
+
+    # Запускаем асинхронные задачи
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(gather_data())
 
