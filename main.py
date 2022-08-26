@@ -19,10 +19,9 @@ headers = {
 proxy = f"http://{proxy_login}:{proxy_password}@{proxy_ip}:{proxy_port}"
 
 
-def get_categories():
+def get_categories(db_con):
     """Возвращает словарь с названиями категорий и ссылками на них"""
-    con = sqlite3.connect(db_path)
-    cur = con.cursor()
+    cur = db_con.cursor()
 
     try:
         count_query = cur.execute("SELECT COUNT(*) FROM categories")
@@ -34,13 +33,11 @@ def get_categories():
         load_categories(save=True)
 
     query = cur.execute("SELECT id, title, url FROM categories WHERE done = FALSE")
-    result = query.fetchall()
-    con.close()
-
-    return result
+    return query.fetchall()
 
 
-async def get_category_page_data(session, category_name, category_url):
+async def get_category_page_data(session, db_con, category_name, category_url):
+    cursor = db_con.cursor()
     page = 1
     while page != 10000:
         page_url = category_url if page == 1 else f"{category_url}~{page}/"
@@ -91,15 +88,15 @@ async def get_category_page_data(session, category_name, category_url):
         page += 1
 
 
-async def gather_data():
-    categories = get_categories()
+async def gather_data(db_con):
+    categories = get_categories(db_con)
     # TODO: убрать ограничения
     categories = categories[:3]
     async with aiohttp.ClientSession() as session:
         tasks = []
         for id, category_name, category_url in categories:
             task = asyncio.create_task(
-                get_category_page_data(session, category_name, category_url)
+                get_category_page_data(session, db_con, category_name, category_url)
             )
             tasks.append(task)
 
@@ -113,16 +110,17 @@ def main():
         receipts_path.mkdir()
 
     # Создаём таблицы в БД, если не существуют
-    con = sqlite3.connect(db_path)
-    cur = con.cursor()
+    db_con = sqlite3.connect(db_path)
+    cur = db_con.cursor()
     cur.execute(
         "CREATE TABLE IF NOT EXISTS receipts (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, title VARCHAR(255), url VARCHAR(255), done BOOLEAN DEFAULT FALSE, FOREIGN KEY (category_id) REFERENCES categories (category_id) ON DELETE CASCADE)"
     )
-    con.close()
 
     # Запускаем асинхронные задачи
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    asyncio.run(gather_data())
+    asyncio.run(gather_data(db_con))
+
+    db_con.close()
 
 
 if __name__ == "__main__":

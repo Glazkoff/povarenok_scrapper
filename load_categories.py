@@ -37,11 +37,19 @@ def load_categories(save=True):
         ),
     )
 
+    black_list = [
+        "https://www.povarenok.ru/recipes/search/?ing=1#searchformtop",
+        "https://www.povarenok.ru/recipes/cat/",
+        "https://www.povarenok.ru/recipes/",
+        "https://www.povarenok.ru/recipes/add/",
+    ]
+
     all_categories_dict = {}
     for link in all_links:
         label = link.text.strip()
         href = link["href"]
-        all_categories_dict[label] = href
+        if href not in black_list:
+            all_categories_dict[label] = href
 
     if save:
         save_categories(all_categories_dict)
