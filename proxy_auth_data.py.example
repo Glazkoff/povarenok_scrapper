@@ -1,0 +1,4 @@
+proxy_ip = "proxy_ip"
+proxy_port = "proxy_port"
+proxy_login = "proxy_login"
+proxy_password = "proxy_password"
