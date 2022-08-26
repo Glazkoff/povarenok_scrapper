@@ -16,7 +16,7 @@ def save_categories(categories_dict):
     con = sqlite3.connect(db_path)
     cur = con.cursor()
     cur.execute(
-        "CREATE TABLE IF NOT EXISTS categories(id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(255), url VARCHAR(255))"
+        "CREATE TABLE IF NOT EXISTS categories(id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(255), url VARCHAR(255), done BOOLEAN DEFAULT FALSE)"
     )
 
     cur.executemany("INSERT INTO categories (title, url) VALUES(?, ?)", db_insert_data)
@@ -25,7 +25,7 @@ def save_categories(categories_dict):
     con.close()
 
 
-def get_categories(save=True):
+def load_categories(save=True):
     main_response = requests.get(category_list_url, headers=headers)
     main_src = main_response.text
     soup = BeautifulSoup(main_src, "lxml")
@@ -48,5 +48,6 @@ def get_categories(save=True):
 
     return all_categories_dict
 
+
 if __name__ == "__main__":
-    get_categories()
+    load_categories()

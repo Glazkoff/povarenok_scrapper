@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup
 from mark_time import mark_time
 from proxy_auth_data import proxy_ip, proxy_port, proxy_login, proxy_password
 from paths import receipts_path, db_path, categories_file
+from load_categories import load_categories
 
 headers = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
@@ -20,15 +21,30 @@ proxy = f"http://{proxy_login}:{proxy_password}@{proxy_ip}:{proxy_port}"
 
 def get_categories():
     """Возвращает словарь с названиями категорий и ссылками на них"""
-    with open(categories_file, "r", encoding="utf8") as f:
-        return json.load(f)
+    con = sqlite3.connect(db_path)
+    cur = con.cursor()
+
+    try:
+        count_query = cur.execute("SELECT COUNT(*) FROM categories")
+        count_result = count_query.fetchone()
+    except Exception:
+        count_result = 0
+
+    if count_result == 0:
+        load_categories(save=True)
+
+    query = cur.execute("SELECT id, title, url FROM categories WHERE done = FALSE")
+    result = query.fetchall()
+    con.close()
+
+    return result
 
 
 async def get_category_page_data(session, category_name, category_url):
     page = 1
     while page != 10000:
         page_url = category_url if page == 1 else f"{category_url}~{page}/"
-        # TODO: добавить
+        # TODO: добавить отказоустойчивость
         async with session.get(url=page_url, proxy=proxy, headers=headers) as response:
             if response.status != 200:
                 break
@@ -77,10 +93,11 @@ async def get_category_page_data(session, category_name, category_url):
 
 async def gather_data():
     categories = get_categories()
-    categories = dict(islice(categories.items(), 3))
+    # TODO: убрать ограничения
+    categories = categories[:3]
     async with aiohttp.ClientSession() as session:
         tasks = []
-        for category_name, category_url in categories.items():
+        for id, category_name, category_url in categories:
             task = asyncio.create_task(
                 get_category_page_data(session, category_name, category_url)
             )
@@ -91,16 +108,17 @@ async def gather_data():
 
 @mark_time
 def main():
-    # Создаём необходимые папки, если не
+    # Создаём необходимые папки, если не существуют
     if not receipts_path.exists() or not receipts_path.is_dir():
         receipts_path.mkdir()
 
     # Создаём таблицы в БД, если не существуют
-    # con = sqlite3.connect(db_path)
-    # cur = con.cursor()
-    # cur.execute(
-    #     "CREATE TABLE IF NOT EXISTS categories(id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(255), url VARCHAR(255))"
-    # )
+    con = sqlite3.connect(db_path)
+    cur = con.cursor()
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS receipts (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, title VARCHAR(255), url VARCHAR(255), done BOOLEAN DEFAULT FALSE, FOREIGN KEY (category_id) REFERENCES categories (category_id) ON DELETE CASCADE)"
+    )
+    con.close()
 
     # Запускаем асинхронные задачи
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
