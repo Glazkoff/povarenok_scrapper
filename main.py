@@ -36,7 +36,7 @@ def get_categories(db_con):
     return query.fetchall()
 
 
-async def get_category_page_data(session, db_con, category_name, category_url):
+async def get_category_page_data(session, db_con, category_id, category_url):
     cursor = db_con.cursor()
     page = 1
     while page != 10000:
@@ -48,7 +48,6 @@ async def get_category_page_data(session, db_con, category_name, category_url):
             response_text = await response.text()
             category_bs4 = BeautifulSoup(response_text, "lxml")
             all_articles_per_page = category_bs4.find_all("article", class_="item-bl")
-            category_path = receipts_path / category_name
             if all_articles_per_page == []:
                 break
             links_per_page = {}
@@ -58,34 +57,30 @@ async def get_category_page_data(session, db_con, category_name, category_url):
                     receipt_header = header.text.strip()
                     receipt_link = header.find("a").get("href", None)
                     print(
-                        f"{category_name} / Страница {page} --- {receipt_header} {receipt_link}"
+                        f"Категория #{category_id} / Страница {page} --- {receipt_header} {receipt_link}"
                     )
                     links_per_page[receipt_header] = receipt_link
                 except Exception as e:
                     print("ERROR! ", e)
 
             if links_per_page != {}:
-                if not category_path.exists() or not category_path.is_dir():
-                    category_path.mkdir()
-                links_file = category_path / "links.csv"
-                fieldnames = ["header", "url"]
-                if not links_file.exists():
-                    with open(links_file, "w", encoding="utf8", newline="") as f:
-                        writer = csv.DictWriter(f, fieldnames=fieldnames)
-                        writer.writeheader()
-                        for header, url in links_per_page.items():
-                            writer.writerow({"header": header, "url": url})
-                else:
-                    with open(links_file, "a", encoding="utf8", newline="") as f:
-                        writer = csv.DictWriter(f, fieldnames=fieldnames)
-                        for header, url in links_per_page.items():
-                            writer.writerow({"header": header, "url": url})
+
+                insert_receipts_data = [
+                    (category_id, title, link) for title, link in links_per_page.items()
+                ]
+                cursor.executemany(
+                    "INSERT OR IGNORE INTO  receipts (category_id, title, url) VALUES (?, ?, ?)",
+                    insert_receipts_data,
+                )
+                db_con.commit()
 
             await asyncio.sleep(
                 randrange(0, 3),
             )
 
         page += 1
+    cursor.execute(f"UPDATE categories SET done=TRUE WHERE id={category_id}")
+    db_con.commit()
 
 
 async def gather_data(db_con):
@@ -94,9 +89,9 @@ async def gather_data(db_con):
     categories = categories[:3]
     async with aiohttp.ClientSession() as session:
         tasks = []
-        for id, category_name, category_url in categories:
+        for category_id, category_name, category_url in categories:
             task = asyncio.create_task(
-                get_category_page_data(session, db_con, category_name, category_url)
+                get_category_page_data(session, db_con, category_id, category_url)
             )
             tasks.append(task)
 
