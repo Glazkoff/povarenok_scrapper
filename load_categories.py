@@ -11,6 +11,23 @@ headers = {
 from paths import db_path
 
 
+def get_categories(db_con):
+    """Возвращает словарь с названиями категорий и ссылками на них"""
+    cur = db_con.cursor()
+
+    try:
+        count_query = cur.execute("SELECT COUNT(*) FROM categories")
+        count_result = count_query.fetchone()
+    except Exception:
+        count_result = 0
+
+    if count_result == 0:
+        load_categories(save=True)
+
+    query = cur.execute("SELECT id, url, next_page FROM categories WHERE done = FALSE")
+    return query.fetchall()
+
+
 def save_categories(categories_dict):
     db_insert_data = list(categories_dict.items())
     con = sqlite3.connect(db_path)
