@@ -32,13 +32,15 @@ def get_categories(db_con):
     if count_result == 0:
         load_categories(save=True)
 
-    query = cur.execute("SELECT id, title, url FROM categories WHERE done = FALSE")
+    query = cur.execute("SELECT id, url, next_page FROM categories WHERE done = FALSE")
     return query.fetchall()
 
 
-async def get_category_page_data(session, db_con, category_id, category_url):
+async def get_category_page_data(
+    session, db_con, category_id, category_url, next_page=1
+):
     cursor = db_con.cursor()
-    page = 1
+    page = next_page
     while page != 10000:
         page_url = category_url if page == 1 else f"{category_url}~{page}/"
         # TODO: добавить отказоустойчивость
@@ -79,6 +81,9 @@ async def get_category_page_data(session, db_con, category_id, category_url):
             )
 
         page += 1
+        cursor.execute(
+            f"UPDATE categories SET next_page={page+1} WHERE id={category_id}"
+        )
     cursor.execute(f"UPDATE categories SET done=TRUE WHERE id={category_id}")
     db_con.commit()
 
@@ -89,9 +94,11 @@ async def gather_data(db_con):
     categories = categories[:3]
     async with aiohttp.ClientSession() as session:
         tasks = []
-        for category_id, category_name, category_url in categories:
+        for category_id, category_url, next_page in categories:
             task = asyncio.create_task(
-                get_category_page_data(session, db_con, category_id, category_url)
+                get_category_page_data(
+                    session, db_con, category_id, category_url, next_page
+                )
             )
             tasks.append(task)
 
@@ -108,7 +115,7 @@ def main():
     db_con = sqlite3.connect(db_path)
     cur = db_con.cursor()
     cur.execute(
-        "CREATE TABLE IF NOT EXISTS receipts (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, title VARCHAR(255), url VARCHAR(255), done BOOLEAN DEFAULT FALSE, FOREIGN KEY (category_id) REFERENCES categories (category_id) ON DELETE CASCADE)"
+        "CREATE TABLE IF NOT EXISTS receipts (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, title VARCHAR(255), url VARCHAR(255) UNIQUE, done BOOLEAN DEFAULT FALSE, FOREIGN KEY (category_id) REFERENCES categories (category_id) ON DELETE CASCADE)"
     )
 
     # Запускаем асинхронные задачи

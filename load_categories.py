@@ -16,7 +16,7 @@ def save_categories(categories_dict):
     con = sqlite3.connect(db_path)
     cur = con.cursor()
     cur.execute(
-        "CREATE TABLE IF NOT EXISTS categories(id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(255), url VARCHAR(255), done BOOLEAN DEFAULT FALSE)"
+        "CREATE TABLE IF NOT EXISTS categories(id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(255), url VARCHAR(255), next_page INTEGER DEFAULT 1, done BOOLEAN DEFAULT FALSE)"
     )
 
     cur.executemany("INSERT INTO categories (title, url) VALUES(?, ?)", db_insert_data)
