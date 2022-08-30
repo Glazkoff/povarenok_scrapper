@@ -27,8 +27,10 @@ async def get_receipt_page_data(session, db_con, receipt_url):
         receipt_bs4 = BeautifulSoup(response_text, "lxml")
 
         receipt_text = ""
+        ingredients = []
         if h2 := receipt_bs4.find("h2", text=re.compile("Рецепт")):
             # Классический путь
+            # ПРИМЕР: https://www.povarenok.ru/recipes/show/58070/
             if recipe_instructions_ul := h2.findNext(
                 "ul", itemprop="recipeInstructions"
             ):
@@ -39,7 +41,6 @@ async def get_receipt_page_data(session, db_con, receipt_url):
                         .findNext("div")
                         .text.strip()
                     )
-
             else:
                 receipt_text = (
                     receipt_bs4.find("h2", text=re.compile("Рецепт"))
@@ -50,13 +51,38 @@ async def get_receipt_page_data(session, db_con, receipt_url):
             if recipe_steps_div := h2.findNext("div", class_="recipe-steps"):
                 receipt_text = recipe_steps_div.text.strip()
 
+        if ingredients_div := receipt_bs4.find("div", class_="ingredients-bl"):
+            ingredients_items = ingredients_div.find_all(
+                "li", itemprop="recipeIngredient"
+            )
+
+            for item in ingredients_items:
+                a = item.find("a")
+                ingredient_label = a.text.strip()
+                ingredient_url = a["href"]
+                ingredients.append((ingredient_label, ingredient_url))
+                print(f'--- Ингредиент "{ingredient_label}" - {ingredient_url}')
+
         text_result = "".join(receipt_text.splitlines())
         try:
+            cursor.executemany(
+                "INSERT OR IGNORE INTO ingredients (title, url) VALUES (?, ?)",
+                ingredients,
+            )
             receipt_id_query = cursor.execute(
                 "SELECT id FROM receipts WHERE url=?", (receipt_url,)
             )
             receipt_id = receipt_id_query.fetchone()
             receipt_id = receipt_id[0]
+
+            ingredients_in_receipts_data = [
+                (receipt_id, ingredient[1]) for ingredient in ingredients
+            ]
+            cursor.executemany(
+                "INSERT OR IGNORE INTO ingredients_in_receipts (receipt_id, ingredient_id) SELECT ?, id FROM ingredients WHERE url=?",
+                ingredients_in_receipts_data,
+            )
+
             cursor.execute(
                 "INSERT OR IGNORE INTO receipts_data (receipt_id, text) VALUES (?, ?)",
                 (receipt_id, text_result),
@@ -184,11 +210,25 @@ def main():
     # Создаём таблицы в БД, если не существуют
     db_con = sqlite3.connect(db_path)
     cur = db_con.cursor()
+
+    # Таблица со ссылками рецептов и метаинформацией
     cur.execute(
         "CREATE TABLE IF NOT EXISTS receipts (id INTEGER PRIMARY KEY AUTOINCREMENT, category_id INTEGER, title VARCHAR(255), url VARCHAR(255) UNIQUE, done BOOLEAN DEFAULT FALSE, FOREIGN KEY (category_id) REFERENCES categories (category_id) ON DELETE CASCADE)"
     )
+
+    # Таблица с текстами рецептов
     cur.execute(
         "CREATE TABLE IF NOT EXISTS receipts_data (id INTEGER PRIMARY KEY AUTOINCREMENT, receipt_id INTEGER UNIQUE, text TEXT, FOREIGN KEY (receipt_id) REFERENCES receipts (receipt_id) ON DELETE CASCADE)"
+    )
+
+    # Таблица с ингредиентами и ссылками на их страницы
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS ingredients (id INTEGER PRIMARY KEY AUTOINCREMENT, title VARCHAR(255), url VARCHAR(255) UNIQUE)"
+    )
+
+    # M2M-связь рецептов и ингредиентов
+    cur.execute(
+        "CREATE TABLE IF NOT EXISTS ingredients_in_receipts (id INTEGER PRIMARY KEY AUTOINCREMENT, receipt_id INTEGER, ingredient_id INTEGER, FOREIGN KEY (receipt_id) REFERENCES receipts (receipt_id) ON DELETE CASCADE, FOREIGN KEY (ingredient_id) REFERENCES ingredients (ingredient_id) ON DELETE CASCADE)"
     )
 
     # Запускаем асинхронные задачи
