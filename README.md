@@ -1,5 +1,7 @@
 # Парсер сайта Поварёнок.Ру
 
+[![Commit activity badge](https://img.shields.io/github/commit-activity/m/Glazkoff/povarenok_scrapper?label=%D0%90%D0%BA%D1%82%D0%B8%D0%B2%D0%BD%D0%BE%D1%81%D1%82%D1%8C%20%D0%BA%D0%BE%D0%BC%D0%BC%D0%B8%D1%82%D0%BE%D0%B2)](https://img.shields.io/github/commit-activity/m/Glazkoff/povarenok_scrapper)
+
 ## Зачем?
 
 Для исследовательских целей в рамках работы с генеративным машинным обучением
