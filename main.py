@@ -6,15 +6,12 @@ import aiohttp
 import asyncio
 from bs4 import BeautifulSoup
 
-from mark_time import mark_time
-from config import PROXY_IP, PROXY_PORT, PROXY_LOGIN, PROXY_PASSWORD
-from paths import db_path
+from decorators.mark_time import mark_time
+from settings.config import PROXY_IP, PROXY_PORT, PROXY_LOGIN, PROXY_PASSWORD
+from settings.paths import db_path
+from settings.headers import headers
 from load_categories import get_categories
 
-headers = {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36",
-}
 proxy = f"http://{PROXY_LOGIN}:{PROXY_PASSWORD}@{PROXY_IP}:{PROXY_PORT}"
 
 
