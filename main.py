@@ -1,5 +1,4 @@
 import sqlite3
-import json
 import re
 from random import randrange
 import aiohttp
@@ -7,7 +6,7 @@ import asyncio
 from bs4 import BeautifulSoup
 
 from decorators.mark_time import mark_time
-from settings.config import PROXY_IP, PROXY_PORT, PROXY_LOGIN, PROXY_PASSWORD, PROXY_URL
+from settings.config import PROXY_URL
 from settings.paths import db_path
 from settings.headers import headers
 from load_categories import get_categories
@@ -106,7 +105,7 @@ async def get_category_page_data(
         page_url = category_url if page == 1 else f"{category_url}~{page}/"
         try:
             async with session.get(
-                url=page_url, proxy=proxy, headers=headers
+                url=page_url, proxy=PROXY_URL, headers=headers
             ) as response:
                 if response.status != 200:
                     break
@@ -155,16 +154,19 @@ async def get_category_page_data(
                 )
 
         except Exception as e:
+            print("BREAK ERROR! ", e)
             break
 
         page += 1
+        next_page = page + 1
         cursor.execute(
             "UPDATE categories SET next_page=? WHERE id=?",
             (
-                page + 1,
+                next_page,
                 category_id,
             ),
         )
+        db_con.commit()
     cursor.execute("UPDATE categories SET done=1 WHERE id=?", (category_id,))
     db_con.commit()
 
