@@ -7,17 +7,17 @@ import asyncio
 from bs4 import BeautifulSoup
 
 from decorators.mark_time import mark_time
-from settings.config import PROXY_IP, PROXY_PORT, PROXY_LOGIN, PROXY_PASSWORD
+from settings.config import PROXY_IP, PROXY_PORT, PROXY_LOGIN, PROXY_PASSWORD, PROXY_URL
 from settings.paths import db_path
 from settings.headers import headers
 from load_categories import get_categories
 
-proxy = f"http://{PROXY_LOGIN}:{PROXY_PASSWORD}@{PROXY_IP}:{PROXY_PORT}"
-
 
 async def get_receipt_page_data(session, db_con, receipt_url):
     cursor = db_con.cursor()
-    async with session.get(url=receipt_url, proxy=proxy, headers=headers) as response:
+    async with session.get(
+        url=receipt_url, proxy=PROXY_URL, headers=headers
+    ) as response:
         if response.status != 200:
             return None
         response_text = await response.text()
