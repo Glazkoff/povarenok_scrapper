@@ -10,6 +10,7 @@ from settings.config import PROXY_URL
 from settings.paths import db_path
 from settings.headers import headers
 from load_categories import get_categories
+from tg_bot import broadcaster
 
 
 async def get_receipt_page_data(session, db_con, receipt_url):
@@ -177,6 +178,8 @@ async def gather_data(db_con):
     cursor = db_con.cursor()
     receipts_query = cursor.execute("SELECT url FROM receipts WHERE done=FALSE")
     receipts = receipts_query.fetchall()
+
+    await broadcaster(message="Начинаю работу...")
 
     # TODO: убрать ограничения
     receipts = receipts[:3]
