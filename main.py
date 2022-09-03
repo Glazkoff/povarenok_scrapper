@@ -1,26 +1,23 @@
 import sqlite3
-import json
 import re
 from random import randrange
 import aiohttp
 import asyncio
 from bs4 import BeautifulSoup
 
-from mark_time import mark_time
-from proxy_auth_data import proxy_ip, proxy_port, proxy_login, proxy_password
-from paths import db_path
+from decorators.mark_time import mark_time
+from settings.config import PROXY_URL
+from settings.paths import db_path
+from settings.headers import headers
 from load_categories import get_categories
-
-headers = {
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36",
-}
-proxy = f"http://{proxy_login}:{proxy_password}@{proxy_ip}:{proxy_port}"
+from tg_bot import broadcaster
 
 
 async def get_receipt_page_data(session, db_con, receipt_url):
     cursor = db_con.cursor()
-    async with session.get(url=receipt_url, proxy=proxy, headers=headers) as response:
+    async with session.get(
+        url=receipt_url, proxy=PROXY_URL, headers=headers
+    ) as response:
         if response.status != 200:
             return None
         response_text = await response.text()
@@ -109,7 +106,7 @@ async def get_category_page_data(
         page_url = category_url if page == 1 else f"{category_url}~{page}/"
         try:
             async with session.get(
-                url=page_url, proxy=proxy, headers=headers
+                url=page_url, proxy=PROXY_URL, headers=headers
             ) as response:
                 if response.status != 200:
                     break
@@ -158,16 +155,19 @@ async def get_category_page_data(
                 )
 
         except Exception as e:
+            print("BREAK ERROR! ", e)
             break
 
         page += 1
+        next_page = page + 1
         cursor.execute(
             "UPDATE categories SET next_page=? WHERE id=?",
             (
-                page + 1,
+                next_page,
                 category_id,
             ),
         )
+        db_con.commit()
     cursor.execute("UPDATE categories SET done=1 WHERE id=?", (category_id,))
     db_con.commit()
 
@@ -178,6 +178,8 @@ async def gather_data(db_con):
     cursor = db_con.cursor()
     receipts_query = cursor.execute("SELECT url FROM receipts WHERE done=FALSE")
     receipts = receipts_query.fetchall()
+
+    await broadcaster(message="Начинаю работу...")
 
     # TODO: убрать ограничения
     receipts = receipts[:3]

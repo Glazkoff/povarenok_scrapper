@@ -4,11 +4,8 @@ import sqlite3
 from bs4 import BeautifulSoup
 
 category_list_url = "https://www.povarenok.ru/recipes/cat/"
-headers = {
-    "accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
-    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36",
-}
-from paths import db_path
+from settings.headers import headers
+from settings.paths import db_path
 
 
 def get_categories(db_con):
