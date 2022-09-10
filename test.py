@@ -27,10 +27,10 @@ async def get_task(i, last):
         print(f"{i} - end {count}/{last}")
         current_time = datetime.datetime.now()
         diff = current_time - start_time
-        print(f"Прошло времени: {diff}")
+        print(f"Time has passed: {diff}")
 
         if diff > datetime.timedelta(seconds=20):
-            print("ПРОШЛО БОЛЬШЕ 20 СЕК!!!")
+            print("20 sec finished!!!")
             for task in asyncio.all_tasks():
                 task.cancel()
 
@@ -54,12 +54,12 @@ async def gather_data(last):
 def main():
 
     with test_file.open("w", encoding="utf8") as f:
-        f.write("Старт записи\n")
+        f.write("Start writing\n")
 
     asyncio.run(gather_data(1000))
 
     end_time = datetime.datetime.now()
-    print(f"Время выполнения: {end_time - start_time}")
+    print(f"Lead time: {end_time - start_time}")
 
 
 if __name__ == "__main__":
