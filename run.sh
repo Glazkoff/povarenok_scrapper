@@ -1,3 +1,2 @@
 #!/bin/sh
-poetry shell
-python3 test.py
+poetry run python test.py
