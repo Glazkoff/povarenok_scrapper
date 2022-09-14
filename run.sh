@@ -1,2 +1,3 @@
 #!/bin/sh
-poetry run python test.py
+cd /root/povarenok_scrapper
+/usr/local/bin/poetry run python test.py
